@@ -4,6 +4,8 @@ import http from "http";
 import { WebSocketServer } from "ws";
 import cors from "cors";
 
+const port = process.env.PORT || 3001;
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -80,5 +82,4 @@ wss.on("connection", (ws) => {
   });
 });
 
-const PORT = process.env.PORT || 8080;
-server.listen(PORT, () => console.log(`🚀 Signaling server running on port ${PORT}`));
+server.listen(port, () => console.log(`🚀 Signaling server running on port ${PORT}`));
