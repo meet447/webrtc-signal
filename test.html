@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>OpenVoice Local Test (fixed ICE timing)</title>
+    <style>
+      body { font-family: sans-serif; padding: 20px; }
+      button { padding: 8px 16px; margin-top: 10px; }
+      #logs { margin-top: 20px; background: #f4f4f4; padding: 10px; font-family: monospace; height: 150px; overflow-y: auto; }
+    </style>
+  </head>
+  <body>
+    <h2>🎤 OpenVoice Two-Way Audio Test</h2>
+    <button id="joinBtn">Join Room</button>
+    <audio id="remoteAudio" autoplay></audio>
+    <div id="logs"></div>
+
+    <script>
+      const ws = new WebSocket("ws://localhost:8080");
+      const roomId = "demo-room";
+      const userId = Math.random().toString(36).slice(2, 7);
+      let pc, localStream;
+      let pendingCandidates = [];
+
+      const logDiv = document.getElementById("logs");
+      const log = (...args) => {
+        console.log("[LOG]", ...args);
+        logDiv.innerHTML += args.join(" ") + "<br>";
+        logDiv.scrollTop = logDiv.scrollHeight;
+      };
+
+      ws.onopen = () => log("✅ Connected to signaling server");
+
+      ws.onmessage = async (msg) => {
+        const data = JSON.parse(msg.data);
+        log("📩", JSON.stringify(data));
+
+        if (data.type === "ready") {
+          if (data.role === "caller") startCall();
+        }
+
+        if (data.type === "offer") {
+          await ensurePeerConnection();
+
+          // Callee mic
+          if (!localStream) {
+            try {
+              localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+              log("🎙️ Callee mic ready");
+            } catch (err) {
+              console.error("❌ Mic error (callee):", err);
+              return;
+            }
+          }
+
+          await pc.setRemoteDescription(data.payload);
+
+          // Apply any queued ICE candidates now that remote description is set
+          for (const cand of pendingCandidates) {
+            try { await pc.addIceCandidate(cand); } 
+            catch (err) { console.warn("Queued ICE failed:", err); }
+          }
+          pendingCandidates = [];
+
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          ws.send(JSON.stringify({ type: "answer", roomId, userId, payload: answer }));
+        }
+
+        if (data.type === "answer") {
+          await pc.setRemoteDescription(data.payload);
+        }
+
+        if (data.type === "ice") {
+          const candidate = data.payload;
+          if (pc?.remoteDescription && pc.remoteDescription.type) {
+            try {
+              await pc.addIceCandidate(candidate);
+            } catch (err) {
+              console.warn("ICE add failed:", err);
+            }
+          } else {
+            // queue until remoteDescription is ready
+            pendingCandidates.push(candidate);
+            log("🕓 Queued ICE (remoteDescription not set yet)");
+          }
+        }
+      };
+
+      document.getElementById("joinBtn").onclick = () => {
+        ws.send(JSON.stringify({ type: "join", roomId, userId }));
+        log(`🟢 Joined ${roomId} as ${userId}`);
+      };
+
+      async function ensurePeerConnection() {
+        if (pc) return;
+        pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            ws.send(JSON.stringify({
+              type: "ice", roomId, userId, payload: event.candidate
+            }));
+          }
+        };
+
+        pc.ontrack = (event) => {
+          log("🎧 Received remote audio stream");
+          document.getElementById("remoteAudio").srcObject = event.streams[0];
+        };
+      }
+
+      async function startCall() {
+        await ensurePeerConnection();
+
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          log("🎙️ Caller mic ready");
+        } catch (err) {
+          console.error("❌ Mic error (caller):", err);
+          return;
+        }
+
+        localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        ws.send(JSON.stringify({ type: "offer", roomId, userId, payload: offer }));
+      }
+    </script>
+  </body>
+</html>
