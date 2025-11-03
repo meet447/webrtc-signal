@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>VoiceSignal Dashboard</title>
+    <style>
+      body {
+        margin: 0;
+        background: #0f172a;
+        color: #e2e8f0;
+        font-family: "Inter", sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+      }
+
+      header {
+        width: 100%;
+        background: #1e293b;
+        padding: 16px;
+        font-size: 20px;
+        font-weight: 600;
+        text-align: center;
+        color: #93c5fd;
+      }
+
+      #controls {
+        margin-top: 16px;
+      }
+
+      button {
+        margin: 6px;
+        padding: 10px 18px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 500;
+        transition: 0.2s ease;
+      }
+
+      #muteBtn {
+        background: #2563eb;
+        color: white;
+      }
+
+      #muteBtn:hover {
+        background: #1d4ed8;
+      }
+
+      #leaveBtn {
+        background: #ef4444;
+        color: white;
+      }
+
+      #leaveBtn:hover {
+        background: #dc2626;
+      }
+
+      #users-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 30px;
+        gap: 20px;
+      }
+
+      .user-card {
+        background: #1e293b;
+        border-radius: 12px;
+        padding: 16px;
+        width: 120px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow: 0 0 10px rgba(30, 41, 59, 0.5);
+        transition: transform 0.2s ease;
+      }
+
+      .user-card:hover {
+        transform: translateY(-3px);
+      }
+
+      .avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #3b82f6;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 8px;
+      }
+
+      .mic-status {
+        font-size: 13px;
+        color: #94a3b8;
+      }
+
+      .mic-on {
+        color: #22c55e;
+      }
+
+      .mic-off {
+        color: #ef4444;
+      }
+
+      #status {
+        margin-top: 20px;
+        font-size: 14px;
+        color: #a5b4fc;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>🎧 VoiceSignal Dashboard</header>
+
+    <div id="controls">
+      <button id="muteBtn">Mute Mic</button>
+      <button id="leaveBtn">Leave Room</button>
+    </div>
+
+    <div id="status">Connecting...</div>
+
+    <div id="users-container"></div>
+
+    <script type="module">
+      import { VoiceSignal } from "./index.js";
+
+      const muteBtn = document.getElementById("muteBtn");
+      const leaveBtn = document.getElementById("leaveBtn");
+      const statusDiv = document.getElementById("status");
+      const usersContainer = document.getElementById("users-container");
+
+      const userId = Math.random().toString(36).substring(2, 7);
+      const voice = new VoiceSignal({
+        serverUrl: "wss://webrtc-signal-z7bp.onrender.com",
+        roomId: "demo-room",
+        userId,
+      });
+
+      let isMuted = false;
+      const userCards = new Map();
+
+      function createUserCard(id, isSelf = false) {
+        const card = document.createElement("div");
+        card.className = "user-card";
+        card.id = `user-${id}`;
+
+        const avatar = document.createElement("div");
+        avatar.className = "avatar";
+        avatar.textContent = id.slice(0, 2).toUpperCase();
+
+        const name = document.createElement("div");
+        name.textContent = isSelf ? `${id} (You)` : id;
+
+        const mic = document.createElement("div");
+        mic.className = "mic-status mic-on";
+        mic.textContent = "🎙️ Mic On";
+
+        card.appendChild(avatar);
+        card.appendChild(name);
+        card.appendChild(mic);
+
+        usersContainer.appendChild(card);
+        userCards.set(id, { card, mic });
+      }
+
+      function updateMicStatus(id, muted) {
+        const user = userCards.get(id);
+        if (user) {
+          user.mic.textContent = muted ? "🔇 Mic Off" : "🎙️ Mic On";
+          user.mic.className = muted ? "mic-status mic-off" : "mic-status mic-on";
+        }
+      }
+
+      function removeUserCard(id) {
+        const user = userCards.get(id);
+        if (user) {
+          user.card.remove();
+          userCards.delete(id);
+        }
+      }
+
+      // VoiceSignal SDK events
+      voice.on("joined", () => {
+        statusDiv.textContent = `✅ Joined as ${userId}`;
+        createUserCard(userId, true);
+      });
+
+      voice.on("userJoined", (id) => {
+        createUserCard(id);
+        console.log("👤", id, "joined");
+      });
+
+      voice.on("userLeft", (id) => {
+        removeUserCard(id);
+        console.log("👋", id, "left");
+      });
+
+      voice.on("stream", (stream, id) => {
+        const audio = document.createElement("audio");
+        audio.srcObject = stream;
+        audio.autoplay = true;
+        document.body.appendChild(audio);
+      });
+
+      await voice.join();
+
+      // Mute mic
+      muteBtn.addEventListener("click", () => {
+        if (!voice.localStream) return;
+        const enabled = !isMuted;
+        voice.localStream.getAudioTracks().forEach((t) => (t.enabled = !t.enabled));
+        isMuted = enabled;
+        muteBtn.textContent = enabled ? "Unmute Mic" : "Mute Mic";
+        updateMicStatus(userId, enabled);
+      });
+
+      // Leave room
+      leaveBtn.addEventListener("click", () => {
+        for (const pc of Object.values(voice.peers)) pc.close();
+        if (voice.localStream) voice.localStream.getTracks().forEach((t) => t.stop());
+        statusDiv.textContent = "❌ Left the room";
+      });
+    </script>
+  </body>
+</html>
