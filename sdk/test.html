@@ -3,229 +3,403 @@
   <head>
     <meta charset="UTF-8" />
     <title>VoiceSignal Dashboard</title>
-    <style>
-      body {
-        margin: 0;
-        background: #0f172a;
-        color: #e2e8f0;
-        font-family: "Inter", sans-serif;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        height: 100vh;
-      }
-
-      header {
-        width: 100%;
-        background: #1e293b;
-        padding: 16px;
-        font-size: 20px;
-        font-weight: 600;
-        text-align: center;
-        color: #93c5fd;
-      }
-
-      #controls {
-        margin-top: 16px;
-      }
-
-      button {
-        margin: 6px;
-        padding: 10px 18px;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 15px;
-        font-weight: 500;
-        transition: 0.2s ease;
-      }
-
-      #muteBtn {
-        background: #2563eb;
-        color: white;
-      }
-
-      #muteBtn:hover {
-        background: #1d4ed8;
-      }
-
-      #leaveBtn {
-        background: #ef4444;
-        color: white;
-      }
-
-      #leaveBtn:hover {
-        background: #dc2626;
-      }
-
-      #users-container {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        margin-top: 30px;
-        gap: 20px;
-      }
-
-      .user-card {
-        background: #1e293b;
-        border-radius: 12px;
-        padding: 16px;
-        width: 120px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        box-shadow: 0 0 10px rgba(30, 41, 59, 0.5);
-        transition: transform 0.2s ease;
-      }
-
-      .user-card:hover {
-        transform: translateY(-3px);
-      }
-
-      .avatar {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: #3b82f6;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-weight: 600;
-        color: white;
-        margin-bottom: 8px;
-      }
-
-      .mic-status {
-        font-size: 13px;
-        color: #94a3b8;
-      }
-
-      .mic-on {
-        color: #22c55e;
-      }
-
-      .mic-off {
-        color: #ef4444;
-      }
-
-      #status {
-        margin-top: 20px;
-        font-size: 14px;
-        color: #a5b4fc;
-      }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
 
-  <body>
-    <header>🎧 VoiceSignal Dashboard</header>
+  <body class="bg-gray-900 text-gray-100 min-h-screen">
+    <header class="bg-gray-800 py-4 px-6 text-xl font-bold text-center text-blue-400">
+      🎧 VoiceSignal Dashboard
+    </header>
 
-    <div id="controls">
-      <button id="muteBtn">Mute Mic</button>
-      <button id="leaveBtn">Leave Room</button>
+    <div class="container mx-auto px-4 py-6">
+      <!-- Device Selection -->
+      <div class="bg-gray-800 rounded-xl p-4 shadow-lg mb-6">
+        <h3 class="text-lg font-semibold mb-3 text-center text-blue-400">Device Selection</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Microphone</label>
+            <select id="audioDeviceSelect" class="w-full bg-gray-700 text-white rounded p-2">
+              <option>Loading devices...</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Camera</label>
+            <select id="videoDeviceSelect" class="w-full bg-gray-700 text-white rounded p-2">
+              <option>Loading devices...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls Section -->
+      <div class="flex flex-wrap gap-3 justify-center mb-6">
+        <button id="toggleMicBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+          Mute Mic
+        </button>
+        <button id="toggleCamBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition">
+          Disable Camera
+        </button>
+        <button id="leaveBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition">
+          Leave Room
+        </button>
+      </div>
+
+      <!-- Status Section -->
+      <div id="status" class="text-center text-yellow-400 mb-6">
+        Connecting...
+      </div>
+
+      <!-- Media Containers -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Local Video -->
+        <div class="bg-gray-800 rounded-xl p-4 shadow-lg">
+          <h3 class="text-lg font-semibold mb-3 text-center text-blue-400">You</h3>
+          <div class="aspect-video bg-gray-700 rounded-lg overflow-hidden">
+            <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover"></video>
+          </div>
+          <div class="mt-2 text-center text-sm text-gray-400">
+            <span id="localMicStatus" class="text-green-400">🎙️ Mic On</span>
+            <span class="mx-2">|</span>
+            <span id="localCamStatus" class="text-green-400">📷 Cam On</span>
+          </div>
+        </div>
+
+        <!-- Remote Videos Container -->
+        <div class="bg-gray-800 rounded-xl p-4 shadow-lg">
+          <h3 class="text-lg font-semibold mb-3 text-center text-purple-400">Participants</h3>
+          <div id="remoteVideosContainer" class="space-y-4">
+            <div class="text-center text-gray-500 py-8">
+              Waiting for participants...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection States -->
+      <div class="mt-6 bg-gray-800 rounded-xl p-4 shadow-lg">
+        <h3 class="text-lg font-semibold mb-3 text-center text-green-400">Connection States</h3>
+        <div id="connectionStates" class="text-sm text-gray-400">
+          <div class="text-center">No connections yet</div>
+        </div>
+      </div>
+
+      <!-- Connection Info -->
+      <div class="mt-6 bg-gray-800 rounded-xl p-4 shadow-lg">
+        <h3 class="text-lg font-semibold mb-3 text-center text-green-400">Connection Info</h3>
+        <div id="connectionInfo" class="text-sm text-gray-400 text-center">
+          Not connected
+        </div>
+      </div>
     </div>
-
-    <div id="status">Connecting...</div>
-
-    <div id="users-container"></div>
 
     <script type="module">
       import { VoiceSignal } from "./index.js";
 
-      const muteBtn = document.getElementById("muteBtn");
+      // DOM Elements
+      const audioDeviceSelect = document.getElementById("audioDeviceSelect");
+      const videoDeviceSelect = document.getElementById("videoDeviceSelect");
+      const toggleMicBtn = document.getElementById("toggleMicBtn");
+      const toggleCamBtn = document.getElementById("toggleCamBtn");
       const leaveBtn = document.getElementById("leaveBtn");
       const statusDiv = document.getElementById("status");
-      const usersContainer = document.getElementById("users-container");
+      const localVideo = document.getElementById("localVideo");
+      const remoteVideosContainer = document.getElementById("remoteVideosContainer");
+      const localMicStatus = document.getElementById("localMicStatus");
+      const localCamStatus = document.getElementById("localCamStatus");
+      const connectionInfo = document.getElementById("connectionInfo");
+      const connectionStates = document.getElementById("connectionStates");
 
+      // Generate random user ID
       const userId = Math.random().toString(36).substring(2, 7);
+      
+      // Initialize VoiceSignal SDK with TURN credentials (optional)
       const voice = new VoiceSignal({
         serverUrl: "wss://webrtc-signal-z7bp.onrender.com",
         roomId: "demo-room",
         userId,
+        video: true,
+        audio: true
       });
 
+      // State variables
       let isMuted = false;
-      const userCards = new Map();
+      let isCameraOff = false;
+      let remoteVideos = {};
 
-      function createUserCard(id, isSelf = false) {
-        const card = document.createElement("div");
-        card.className = "user-card";
-        card.id = `user-${id}`;
+      // Populate device selection dropdowns
+      async function populateDeviceSelectors() {
+        try {
+          // Request permissions first to get device labels
+          const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+          tempStream.getTracks().forEach(track => track.stop());
+        } catch (err) {
+          console.warn("Could not get initial stream for device labels:", err);
+        }
 
-        const avatar = document.createElement("div");
-        avatar.className = "avatar";
-        avatar.textContent = id.slice(0, 2).toUpperCase();
+        // Enumerate devices
+        const devices = await voice.enumerateDevices();
+        
+        // Populate audio devices
+        audioDeviceSelect.innerHTML = '';
+        if (devices.audioInputs.length > 0) {
+          devices.audioInputs.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.textContent = device.label || `Microphone ${audioDeviceSelect.options.length + 1}`;
+            audioDeviceSelect.appendChild(option);
+          });
+        } else {
+          const option = document.createElement('option');
+          option.textContent = 'No microphones found';
+          option.disabled = true;
+          audioDeviceSelect.appendChild(option);
+        }
 
-        const name = document.createElement("div");
-        name.textContent = isSelf ? `${id} (You)` : id;
-
-        const mic = document.createElement("div");
-        mic.className = "mic-status mic-on";
-        mic.textContent = "🎙️ Mic On";
-
-        card.appendChild(avatar);
-        card.appendChild(name);
-        card.appendChild(mic);
-
-        usersContainer.appendChild(card);
-        userCards.set(id, { card, mic });
-      }
-
-      function updateMicStatus(id, muted) {
-        const user = userCards.get(id);
-        if (user) {
-          user.mic.textContent = muted ? "🔇 Mic Off" : "🎙️ Mic On";
-          user.mic.className = muted ? "mic-status mic-off" : "mic-status mic-on";
+        // Populate video devices
+        videoDeviceSelect.innerHTML = '';
+        if (devices.videoInputs.length > 0) {
+          devices.videoInputs.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.textContent = device.label || `Camera ${videoDeviceSelect.options.length + 1}`;
+            videoDeviceSelect.appendChild(option);
+          });
+        } else {
+          const option = document.createElement('option');
+          option.textContent = 'No cameras found';
+          option.disabled = true;
+          videoDeviceSelect.appendChild(option);
         }
       }
 
-      function removeUserCard(id) {
-        const user = userCards.get(id);
-        if (user) {
-          user.card.remove();
-          userCards.delete(id);
-        }
+      // Update connection info display
+      function updateConnectionInfo() {
+        const peerCount = voice.getPeers().length;
+        connectionInfo.innerHTML = `
+          <div>User ID: <span class="text-blue-400">${userId}</span></div>
+          <div>Connected Peers: <span class="text-green-400">${peerCount}</span></div>
+          <div>Status: <span class="text-yellow-400">${voice.isConnected() ? 'Connected' : 'Disconnected'}</span></div>
+        `;
       }
 
-      // VoiceSignal SDK events
+      // Update connection states display
+      function updateConnectionStates() {
+        const states = voice.getIceConnectionStates();
+        if (Object.keys(states).length === 0) {
+          connectionStates.innerHTML = '<div class="text-center">No connections yet</div>';
+          return;
+        }
+
+        let statesHtml = '<div class="grid grid-cols-1 md:grid-cols-2 gap-2">';
+        for (const [peerId, state] of Object.entries(states)) {
+          let stateClass = 'text-gray-400';
+          switch (state) {
+            case 'connected':
+              stateClass = 'text-green-400';
+              break;
+            case 'connecting':
+              stateClass = 'text-yellow-400';
+              break;
+            case 'failed':
+              stateClass = 'text-red-400';
+              break;
+            case 'disconnected':
+              stateClass = 'text-orange-400';
+              break;
+          }
+          
+          statesHtml += `
+            <div class="flex justify-between items-center bg-gray-700 p-2 rounded">
+              <span>${peerId}</span>
+              <span class="${stateClass}">${state}</span>
+            </div>
+          `;
+        }
+        statesHtml += '</div>';
+        connectionStates.innerHTML = statesHtml;
+      }
+
+      // Create remote video element
+      function createRemoteVideo(userId) {
+        // Clear placeholder if it exists
+        if (remoteVideosContainer.querySelector('.text-gray-500')) {
+          remoteVideosContainer.innerHTML = '';
+        }
+
+        const container = document.createElement("div");
+        container.id = `remote-container-${userId}`;
+        container.className = "bg-gray-700 rounded-lg overflow-hidden aspect-video relative";
+        
+        const video = document.createElement("video");
+        video.autoplay = true;
+        video.playsinline = true;
+        video.className = "w-full h-full object-cover";
+        
+        const label = document.createElement("div");
+        label.className = "absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded";
+        label.textContent = userId;
+        
+        container.appendChild(video);
+        container.appendChild(label);
+        remoteVideosContainer.appendChild(container);
+        
+        remoteVideos[userId] = video;
+        updateConnectionInfo();
+        updateConnectionStates();
+      }
+
+      // Remove remote video element
+      function removeRemoteVideo(userId) {
+        const container = document.getElementById(`remote-container-${userId}`);
+        if (container) {
+          container.remove();
+          delete remoteVideos[userId];
+        }
+        
+        // Show placeholder if no remote videos
+        if (Object.keys(remoteVideos).length === 0) {
+          remoteVideosContainer.innerHTML = '<div class="text-center text-gray-500 py-8">Waiting for participants...</div>';
+        }
+        
+        updateConnectionInfo();
+        updateConnectionStates();
+      }
+
+      // VoiceSignal SDK Events
       voice.on("joined", () => {
         statusDiv.textContent = `✅ Joined as ${userId}`;
-        createUserCard(userId, true);
+        statusDiv.className = "text-center text-green-400 mb-6";
+        updateConnectionInfo();
+      });
+
+      voice.on("devicesEnumerated", (devices) => {
+        console.log("Devices enumerated:", devices);
+      });
+
+      voice.on("audioDeviceChanged", (deviceId) => {
+        console.log("Audio device changed to:", deviceId);
+        // Update selected option in dropdown
+        audioDeviceSelect.value = deviceId;
+      });
+
+      voice.on("videoDeviceChanged", (deviceId) => {
+        console.log("Video device changed to:", deviceId);
+        // Update selected option in dropdown
+        videoDeviceSelect.value = deviceId;
       });
 
       voice.on("userJoined", (id) => {
-        createUserCard(id);
+        createRemoteVideo(id);
         console.log("👤", id, "joined");
       });
 
       voice.on("userLeft", (id) => {
-        removeUserCard(id);
+        removeRemoteVideo(id);
         console.log("👋", id, "left");
       });
 
-      voice.on("stream", (stream, id) => {
-        const audio = document.createElement("audio");
-        audio.srcObject = stream;
-        audio.autoplay = true;
-        document.body.appendChild(audio);
+      voice.on("localStream", (stream) => {
+        localVideo.srcObject = stream;
       });
 
-      await voice.join();
-
-      // Mute mic
-      muteBtn.addEventListener("click", () => {
-        if (!voice.localStream) return;
-        const enabled = !isMuted;
-        voice.localStream.getAudioTracks().forEach((t) => (t.enabled = !t.enabled));
-        isMuted = enabled;
-        muteBtn.textContent = enabled ? "Unmute Mic" : "Mute Mic";
-        updateMicStatus(userId, enabled);
+      voice.on("stream", (stream, userId) => {
+        if (remoteVideos[userId]) {
+          remoteVideos[userId].srcObject = stream;
+        }
       });
 
-      // Leave room
+      voice.on("micMuted", (muted) => {
+        localMicStatus.textContent = muted ? "🔇 Mic Off" : "🎙️ Mic On";
+        localMicStatus.className = muted ? "text-red-400" : "text-green-400";
+      });
+
+      voice.on("cameraToggled", (off) => {
+        localCamStatus.textContent = off ? "📷 Cam Off" : "📷 Cam On";
+        localCamStatus.className = off ? "text-red-400" : "text-green-400";
+      });
+
+      voice.on("connectionStateChange", (state, userId) => {
+        console.log(`Connection state for ${userId}:`, state);
+        updateConnectionStates();
+      });
+
+      voice.on("iceConnectionStateChange", (state, userId) => {
+        console.log(`ICE connection state for ${userId}:`, state);
+        updateConnectionStates();
+      });
+
+      voice.on("disconnected", () => {
+        statusDiv.textContent = "❌ Disconnected from server";
+        statusDiv.className = "text-center text-red-400 mb-6";
+        updateConnectionInfo();
+        updateConnectionStates();
+      });
+
+      voice.on("error", (error) => {
+        statusDiv.textContent = `❌ Error: ${error.message}`;
+        statusDiv.className = "text-center text-red-400 mb-6";
+        console.error("SDK Error:", error);
+      });
+
+      // Device Selection Event Listeners
+      audioDeviceSelect.addEventListener("change", async (e) => {
+        const deviceId = e.target.value;
+        if (deviceId) {
+          await voice.switchAudioDevice(deviceId);
+        }
+      });
+
+      videoDeviceSelect.addEventListener("change", async (e) => {
+        const deviceId = e.target.value;
+        if (deviceId) {
+          await voice.switchVideoDevice(deviceId);
+        }
+      });
+
+      // Button Event Listeners
+      toggleMicBtn.addEventListener("click", () => {
+        isMuted = !isMuted;
+        voice.muteMic(isMuted);
+        toggleMicBtn.textContent = isMuted ? "Unmute Mic" : "Mute Mic";
+        toggleMicBtn.className = isMuted 
+          ? "bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition" 
+          : "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition";
+      });
+
+      toggleCamBtn.addEventListener("click", () => {
+        isCameraOff = !isCameraOff;
+        voice.toggleCamera(isCameraOff);
+        toggleCamBtn.textContent = isCameraOff ? "Enable Camera" : "Disable Camera";
+        toggleCamBtn.className = isCameraOff 
+          ? "bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition" 
+          : "bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition";
+      });
+
       leaveBtn.addEventListener("click", () => {
-        for (const pc of Object.values(voice.peers)) pc.close();
-        if (voice.localStream) voice.localStream.getTracks().forEach((t) => t.stop());
+        voice.leave();
         statusDiv.textContent = "❌ Left the room";
+        statusDiv.className = "text-center text-red-400 mb-6";
+        
+        // Stop local video
+        if (localVideo.srcObject) {
+          const tracks = localVideo.srcObject.getTracks();
+          tracks.forEach(track => track.stop());
+          localVideo.srcObject = null;
+        }
+        
+        // Clear remote videos
+        Object.keys(remoteVideos).forEach(removeRemoteVideo);
+        updateConnectionInfo();
+        updateConnectionStates();
+      });
+
+      // Initialize
+      populateDeviceSelectors();
+      
+      // Join the room
+      await voice.join().catch(err => {
+        statusDiv.textContent = `❌ Failed to join: ${err.message}`;
+        statusDiv.className = "text-center text-red-400 mb-6";
       });
     </script>
   </body>
